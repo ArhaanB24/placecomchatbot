@@ -1,4 +1,6 @@
-// Vercel Serverless Function - Chat API Endpoint
+// Vercel Serverless Function & Cloud Run - Chat API Endpoint
+import { GoogleGenAI } from '@google/genai';
+
 export async function processChatRequest(
   body: any,
   headers: Record<string, string | string[] | undefined>
@@ -20,86 +22,153 @@ export async function processChatRequest(
     const customKey = (customHeaderKey || headerOrBodyKey || '').trim();
 
     const envKey = (process.env.NVIDIA_API_KEY || '').trim();
-    const activeNvidiaKey = customKey || (envKey !== 'nvapi-...' ? envKey : '');
+    const activeNvidiaKey = customKey || (envKey && envKey !== 'nvapi-...' ? envKey : '');
 
     console.log('[API CHAT] Key check:', {
       hasCustomKey: Boolean(customKey),
       hasEnvKey: Boolean(envKey && envKey !== 'nvapi-...'),
-      activeKeyFound: Boolean(activeNvidiaKey),
+      activeNvidiaKeyFound: Boolean(activeNvidiaKey),
       selectedModel: model,
       messageCount: messages?.length || 0,
+      geminiKeyPresent: Boolean(process.env.GEMINI_API_KEY),
     });
 
-    if (!activeNvidiaKey) {
-      console.warn('[API CHAT] No NVIDIA API Key available.');
+    let nvidiaContent: string | null = null;
+    let nvidiaModelUsed = model;
+    let lastNvidiaError = '';
+
+    if (activeNvidiaKey) {
+      const candidateEndpoints = [
+        'https://integrate.api.nvidia.com/v1/chat/completions',
+        'https://ai.api.nvidia.com/v1/chat/completions',
+        'https://api.nvidia.com/v1/chat/completions',
+      ];
+
+      const candidateModels = Array.from(
+        new Set([
+          model,
+          'google/gemma-2-27b-it',
+          'meta/llama-3.1-70b-instruct',
+          'meta/llama-3.1-8b-instruct',
+          'nvidia/llama-3.1-nemotron-70b-instruct',
+        ])
+      );
+
+      endpointLoop: for (const endpoint of candidateEndpoints) {
+        for (const targetModel of candidateModels) {
+          console.log(`[API CHAT] Calling NVIDIA endpoint ${endpoint} with model: ${targetModel}...`);
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${activeNvidiaKey}`,
+              },
+              body: JSON.stringify({
+                model: targetModel,
+                messages: [
+                  { role: 'system', content: systemPrompt || '' },
+                  ...(messages || []),
+                ],
+                temperature: typeof temperature === 'number' ? temperature : 0.0,
+                max_tokens: 2048,
+              }),
+            });
+
+            console.log(`[API CHAT] NVIDIA Response Status (${endpoint}): ${response.status}`);
+
+            if (response.ok) {
+              const data = await response.json();
+              const content =
+                data.choices?.[0]?.message?.content || data.content || null;
+              if (content) {
+                nvidiaContent = content;
+                nvidiaModelUsed = targetModel;
+                console.log(`[API CHAT] Success from NVIDIA endpoint ${endpoint} with model ${targetModel}`);
+                break endpointLoop;
+              }
+            } else {
+              const errText = await response.text();
+              console.error(`[API CHAT] NVIDIA error (${endpoint}, ${response.status}):`, errText);
+              lastNvidiaError = `HTTP ${response.status}: ${errText}`;
+              if (response.status !== 404) {
+                // For non-404 errors (like 401 Unauthorized), break out of model variations for this endpoint
+                break;
+              }
+            }
+          } catch (fetchErr: any) {
+            console.error(`[API CHAT] Fetch Exception for ${endpoint}:`, fetchErr);
+            lastNvidiaError = fetchErr.message || String(fetchErr);
+          }
+        }
+      }
+    }
+
+    if (nvidiaContent) {
       return {
-        status: 400,
+        status: 200,
         data: {
-          error:
-            'No NVIDIA API Key configured. Please set NVIDIA_API_KEY in Vercel Environment Variables or enter your API key in the app Settings panel.',
-          provider: 'None',
+          content: nvidiaContent,
+          provider: 'NVIDIA NIM API',
+          modelUsed: nvidiaModelUsed,
+          groundedScore: 100,
         },
       };
     }
 
-    // Call NVIDIA API
-    console.log(`[API CHAT] Calling NVIDIA API endpoint with model: ${model}...`);
-    let lastNvidiaError = '';
-
-    try {
-      const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${activeNvidiaKey}`,
-        },
-        body: JSON.stringify({
-          model: model || 'google/gemma-2-27b-it',
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            ...(messages || []),
-          ],
-          temperature: typeof temperature === 'number' ? temperature : 0.0,
-          max_tokens: 2048,
-        }),
-      });
-
-      console.log(`[API CHAT] NVIDIA Response HTTP Status: ${response.status}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        const content =
-          data.choices?.[0]?.message?.content || 'No response content returned from NVIDIA.';
-        console.log('[API CHAT] Successfully generated response from NVIDIA API.');
-        return {
-          status: 200,
-          data: {
-            content,
-            provider: 'NVIDIA NIM API',
-            modelUsed: model,
-            groundedScore: 100,
+    // Secondary fallback: Gemini API if available
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
+      console.log('[API CHAT] NVIDIA NIM API call returned error or no key. Attempting Gemini API fallback...');
+      try {
+        const ai = new GoogleGenAI({
+          apiKey: geminiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
           },
-        };
-      } else {
-        const errText = await response.text();
-        console.error(`[API CHAT] NVIDIA Error Response (${response.status}):`, errText);
-        try {
-          const parsed = JSON.parse(errText);
-          lastNvidiaError = parsed.detail || parsed.message || parsed.error || errText;
-        } catch {
-          lastNvidiaError = errText;
+        });
+
+        // Send grounded prompt to Gemini
+        const lastUserMessage = messages?.[messages.length - 1]?.content || '';
+        const promptText = `${systemPrompt || ''}\n\nUser Question:\n${lastUserMessage}`;
+
+        const geminiRes = await ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: promptText,
+          config: {
+            temperature: typeof temperature === 'number' ? temperature : 0.0,
+          },
+        });
+
+        const text = geminiRes.text;
+        if (text) {
+          console.log('[API CHAT] Successfully generated response via Gemini API.');
+          return {
+            status: 200,
+            data: {
+              content: text,
+              provider: activeNvidiaKey ? 'Gemini 3.6 Flash (NVIDIA Fallback)' : 'Gemini 3.6 Flash',
+              modelUsed: 'gemini-3.6-flash',
+              groundedScore: 100,
+            },
+          };
         }
+      } catch (geminiErr: any) {
+        console.error('[API CHAT] Gemini API Fallback Exception:', geminiErr);
       }
-    } catch (fetchErr: any) {
-      console.error('[API CHAT] NVIDIA Fetch Exception:', fetchErr);
-      lastNvidiaError = fetchErr.message || String(fetchErr);
     }
+
+    const failureReason = activeNvidiaKey
+      ? `NVIDIA API Error (${lastNvidiaError || '404 Page Not Found'})`
+      : 'No valid API key configured. Please set NVIDIA_API_KEY in environment or enter key in app Settings.';
 
     return {
       status: 400,
       data: {
-        error: `NVIDIA API Call Failed: ${lastNvidiaError}`,
-        provider: 'NVIDIA NIM API',
+        error: failureReason,
+        provider: 'None',
       },
     };
   } catch (globalErr: any) {
@@ -108,7 +177,6 @@ export async function processChatRequest(
       status: 500,
       data: {
         error: `Server Internal Exception: ${globalErr.message || String(globalErr)}`,
-        stack: process.env.NODE_ENV !== 'production' ? globalErr.stack : undefined,
       },
     };
   }
