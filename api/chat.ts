@@ -1,3 +1,4 @@
+// Vercel Serverless Function - Chat API Endpoint
 import { processChatRequest } from './_chatHandler';
 
 export default async function handler(req: any, res: any) {
