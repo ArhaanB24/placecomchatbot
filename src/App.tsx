@@ -28,8 +28,8 @@ export default function App() {
     }
     return {
       nvidiaApiKey: '',
-      selectedModel: 'google/gemma-2-27b-it',
-      temperature: 0.0,
+      selectedModel: 'google/gemma-4-31b-it',
+      temperature: 1,
     };
   });
 
