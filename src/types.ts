@@ -49,7 +49,6 @@ export interface ApiSettings {
   nvidiaApiKey: string;
   selectedModel: NvidiaModelId;
   temperature: number; // 0.0 for zero hallucination
-  useGeminiFallback: boolean;
 }
 
 export interface ComparisonPoint {

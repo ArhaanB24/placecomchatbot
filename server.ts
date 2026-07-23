@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
@@ -16,11 +15,10 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     nvidiaKeyPresent: Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY !== 'nvapi-...'),
-    geminiKeyPresent: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
   });
 });
 
-// Primary Chat Endpoint supporting NVIDIA API & Gemini Fallback
+// Primary Chat Endpoint supporting NVIDIA API
 app.post('/api/chat', async (req, res) => {
   try {
     const {
@@ -30,7 +28,6 @@ app.post('/api/chat', async (req, res) => {
       nvidiaApiKey: headerOrBodyKey,
       model = 'google/gemma-2-27b-it',
       temperature = 0.0,
-      useGeminiFallback = true
     } = req.body;
 
     // Determine NVIDIA API key exclusively from env or headers
@@ -97,37 +94,16 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Fallback to Gemini API if NVIDIA API fails or returns error
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
-      try {
-        const ai = new GoogleGenAI({ apiKey: geminiKey });
-        const lastUserMessage = messages[messages.length - 1]?.content || '';
-        const combinedPrompt = `${systemPrompt}\n\nUser Question:\n${lastUserMessage}`;
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: combinedPrompt,
-          config: {
-            temperature: typeof temperature === 'number' ? temperature : 0.0,
-          },
-        });
-
-        const content = response.text || 'No response generated.';
-
-        return res.json({
-          content,
-          provider: 'Google Gemini (Zero-Hallucination Backup)',
-          modelUsed: 'gemini-2.5-flash',
-          groundedScore: 100,
-        });
-      } catch (geminiErr: any) {
-        console.error('Gemini fallback failed:', geminiErr);
-      }
+    // If NVIDIA API failed or no key was provided
+    let errorDetail = '';
+    if (!activeNvidiaKey) {
+      errorDetail = 'No NVIDIA API Key configured. Please set NVIDIA_API_KEY in environment variables (e.g. on Vercel) or enter your key in settings.';
+    } else {
+      errorDetail = `NVIDIA API call failed: ${lastNvidiaError || 'Unknown error'}`;
     }
 
-    return res.status(500).json({
-      error: lastNvidiaError || 'Unable to generate response from NVIDIA or Gemini LLM.',
+    return res.status(400).json({
+      error: errorDetail,
       provider: 'None',
     });
 

@@ -11,7 +11,6 @@ interface HeaderProps {
   onClearChat: () => void;
   isDrawerOpen: boolean;
   hasNvidiaKey: boolean;
-  hasGeminiKey: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   onClearChat,
   isDrawerOpen,
   hasNvidiaKey,
-  hasGeminiKey,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 lg:px-8 py-3.5 shadow-xs">

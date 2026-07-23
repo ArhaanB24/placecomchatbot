@@ -30,15 +30,13 @@ export default function App() {
       nvidiaApiKey: '',
       selectedModel: 'google/gemma-2-27b-it',
       temperature: 0.0,
-      useGeminiFallback: true,
     };
   });
 
   // Server health state
   const [serverHealth, setServerHealth] = useState<{
     nvidiaKeyPresent: boolean;
-    geminiKeyPresent: boolean;
-  }>({ nvidiaKeyPresent: false, geminiKeyPresent: false });
+  }>({ nvidiaKeyPresent: false });
 
   // Chat Messages State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -51,7 +49,6 @@ export default function App() {
       .then((data) => {
         setServerHealth({
           nvidiaKeyPresent: data.nvidiaKeyPresent,
-          geminiKeyPresent: data.geminiKeyPresent,
         });
       })
       .catch((err) => console.error('Health check failed:', err));
@@ -122,7 +119,6 @@ ${docContext}`;
           scope: activeScope,
           model: apiSettings.selectedModel,
           temperature: apiSettings.temperature,
-          useGeminiFallback: apiSettings.useGeminiFallback,
         }),
       });
 
@@ -196,7 +192,6 @@ ${docContext}`;
         onClearChat={handleClearChat}
         isDrawerOpen={isDocumentDrawerOpen}
         hasNvidiaKey={hasNvidiaKey}
-        hasGeminiKey={serverHealth.geminiKeyPresent}
       />
 
       {/* Main Workspace Grid */}
