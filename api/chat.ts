@@ -1,6 +1,7 @@
 import { processChatRequest } from './_chatHandler';
 
 export default async function handler(req: any, res: any) {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -13,26 +14,26 @@ export default async function handler(req: any, res: any) {
     return res.status(200).end();
   }
 
-  const url = req.url || '';
-  if (url.includes('/health')) {
-    return res.status(200).json({
-      status: 'ok',
-      nvidiaKeyPresent: Boolean(
-        process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY !== 'nvapi-...'
-      ),
-    });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
-  if (req.method === 'POST') {
+  try {
     let body = req.body;
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch (e) {}
+      } catch (e) {
+        console.error('[Vercel Chat API] Failed to parse string body:', e);
+      }
     }
+
     const result = await processChatRequest(body || {}, req.headers || {});
     return res.status(result.status).json(result.data);
+  } catch (err: any) {
+    console.error('[Vercel Chat API] Fatal Handler Error:', err);
+    return res.status(500).json({
+      error: `Vercel Function Error: ${err.message || String(err)}`,
+    });
   }
-
-  return res.status(200).json({ status: 'ok', message: 'API active' });
 }
