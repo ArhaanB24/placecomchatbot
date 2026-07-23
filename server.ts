@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
@@ -11,15 +10,18 @@ const PORT = 3000;
 app.use(express.json({ limit: '10mb' }));
 
 // Health Check API
-app.get('/api/health', (req, res) => {
+const handleHealth = (req: any, res: any) => {
   res.json({
     status: 'ok',
     nvidiaKeyPresent: Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY !== 'nvapi-...'),
   });
-});
+};
+
+app.get('/api/health', handleHealth);
+app.get('/health', handleHealth);
 
 // Primary Chat Endpoint supporting NVIDIA API
-app.post('/api/chat', async (req, res) => {
+const handleChat = async (req: any, res: any) => {
   try {
     const {
       messages,
@@ -28,7 +30,7 @@ app.post('/api/chat', async (req, res) => {
       nvidiaApiKey: headerOrBodyKey,
       model = 'google/gemma-2-27b-it',
       temperature = 0.0,
-    } = req.body;
+    } = req.body || {};
 
     // Determine NVIDIA API key exclusively from env or headers
     const rawKey =
@@ -52,7 +54,7 @@ app.post('/api/chat', async (req, res) => {
           const bodyObj: any = {
             model: model || 'google/gemma-2-27b-it',
             messages: [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: systemPrompt || '' },
               ...(messages || []),
             ],
             temperature: typeof temperature === 'number' ? temperature : 0.0,
@@ -113,10 +115,14 @@ app.post('/api/chat', async (req, res) => {
       error: error.message || 'An unexpected error occurred while processing your request.',
     });
   }
-});
+};
+
+app.post('/api/chat', handleChat);
+app.post('/chat', handleChat);
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -140,4 +146,5 @@ export default app;
 if (!process.env.VERCEL) {
   startServer();
 }
+
 
