@@ -33,60 +33,58 @@ app.post('/api/chat', async (req, res) => {
       useGeminiFallback = true
     } = req.body;
 
-    // Determine which NVIDIA API key to use
-    const DEFAULT_NVIDIA_KEY = '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';
-
+    // Determine NVIDIA API key exclusively from env or headers
     const rawKey =
       (req.headers['x-nvidia-api-key'] as string) ||
       headerOrBodyKey ||
-      process.env.NVIDIA_API_KEY ||
-      DEFAULT_NVIDIA_KEY;
+      process.env.NVIDIA_API_KEY;
 
-    const activeNvidiaKey = rawKey && rawKey.trim() !== '' ? rawKey.trim() : DEFAULT_NVIDIA_KEY;
-
-    const endpointsToTry = [
-      'https://integrate.api.nvidia.com/v1/chat/completions',
-      'https://ai.api.nvidia.com/v1/chat/completions',
-      `https://ai.api.nvidia.com/v1/genai/${model}`,
-    ];
+    const activeNvidiaKey = rawKey && rawKey.trim() !== '' && rawKey !== 'nvapi-...' ? rawKey.trim() : null;
 
     let nvidiaContent: string | null = null;
     let lastNvidiaError: string = '';
 
-    for (const endpoint of endpointsToTry) {
-      try {
-        const bodyObj: any = {
-          model: model || 'google/gemma-2-27b-it',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...(messages || []),
-          ],
-          temperature: typeof temperature === 'number' ? temperature : 0.0,
-          max_tokens: 1500,
-          top_p: 1.0,
-        };
+    if (activeNvidiaKey) {
+      const endpointsToTry = [
+        'https://integrate.api.nvidia.com/v1/chat/completions',
+        'https://ai.api.nvidia.com/v1/chat/completions',
+      ];
 
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${activeNvidiaKey}`,
-          },
-          body: JSON.stringify(bodyObj),
-        });
+      for (const endpoint of endpointsToTry) {
+        try {
+          const bodyObj: any = {
+            model: model || 'google/gemma-2-27b-it',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...(messages || []),
+            ],
+            temperature: typeof temperature === 'number' ? temperature : 0.0,
+            max_tokens: 1500,
+            top_p: 1.0,
+          };
 
-        if (response.ok) {
-          const data = await response.json();
-          nvidiaContent = data.choices?.[0]?.message?.content || data.content || null;
-          if (nvidiaContent) break;
-        } else {
-          const errText = await response.text();
-          console.warn(`NVIDIA endpoint ${endpoint} returned ${response.status}: ${errText}`);
-          lastNvidiaError = `NVIDIA API (${response.status}): ${errText}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeNvidiaKey}`,
+            },
+            body: JSON.stringify(bodyObj),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            nvidiaContent = data.choices?.[0]?.message?.content || data.content || null;
+            if (nvidiaContent) break;
+          } else {
+            const errText = await response.text();
+            console.warn(`NVIDIA endpoint ${endpoint} returned ${response.status}: ${errText}`);
+            lastNvidiaError = `NVIDIA API (${response.status}): ${errText}`;
+          }
+        } catch (err: any) {
+          console.warn(`Error fetching NVIDIA endpoint ${endpoint}:`, err.message);
+          lastNvidiaError = err.message;
         }
-      } catch (err: any) {
-        console.warn(`Error fetching NVIDIA endpoint ${endpoint}:`, err.message);
-        lastNvidiaError = err.message;
       }
     }
 

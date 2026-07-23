@@ -131,7 +131,16 @@ ${docContext}`;
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        if (!response.ok) {
+          throw new Error(`Server Error (${response.status})`);
+        }
+        throw new Error('Received invalid non-JSON response from server.');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `Server Error (${response.status})`);
