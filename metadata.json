@@ -1,0 +1,6 @@
+{
+  "name": "NMIMS Placement Declaration QA Chatbot",
+  "description": "Zero-hallucination document QA chatbot for NMIMS Final Placement and TIP Internship declaration forms, powered by NVIDIA Gemma API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
