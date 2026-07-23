@@ -18,21 +18,16 @@ export default function App() {
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
 
   // API Key & Model Settings State
-  const DEFAULT_KEY = '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';
-
   const [apiSettings, setApiSettings] = useState<ApiSettings>(() => {
     const saved = localStorage.getItem('nmims_nvidia_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (!parsed.nvidiaApiKey) {
-          parsed.nvidiaApiKey = DEFAULT_KEY;
-        }
         return parsed;
       } catch (_) {}
     }
     return {
-      nvidiaApiKey: DEFAULT_KEY,
+      nvidiaApiKey: '',
       selectedModel: 'google/gemma-2-27b-it',
       temperature: 0.0,
       useGeminiFallback: true,
