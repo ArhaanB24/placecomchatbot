@@ -1,4 +1,4 @@
-import { processChatRequest } from './_chatHandler';
+import { processChatRequest } from './chat.js';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');

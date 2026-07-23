@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { processChatRequest } from './api/_chatHandler';
+import { processChatRequest } from './api/chat.js';
 
 dotenv.config();
 
