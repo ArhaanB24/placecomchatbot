@@ -121,10 +121,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {msg.sender === 'assistant' && !msg.isError && (
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 text-xs text-slate-500 font-medium">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-700 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-slate-500" />
-                        Grounded AI Response
+                      <span className="font-semibold text-slate-800 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200/80 text-[11px]">
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        Cited & Grounded Response
                       </span>
+                      {msg.scopeUsed && (
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          [{msg.scopeUsed === 'both' ? 'Placement & TIP Policies' : msg.scopeUsed === 'doc1' ? 'Placement Policy' : 'TIP Policy'}]
+                        </span>
+                      )}
                     </div>
 
                     <button

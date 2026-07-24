@@ -28,8 +28,8 @@ export default function App() {
     }
     return {
       nvidiaApiKey: '',
-      selectedModel: 'google/gemma-4-31b-it',
-      temperature: 1,
+      selectedModel: 'google/gemma-2-27b-it',
+      temperature: 0.0,
     };
   });
 
@@ -76,10 +76,11 @@ export default function App() {
 YOUR STRICT DIRECTIVES:
 1. RELY ONLY ON THE PROVIDED DOCUMENT CONTEXT BELOW.
 2. IF A USER ASKS FOR INFORMATION NOT DIRECTLY STATED IN THE CONTEXT, YOU MUST ANSWER EXACTLY: "This information is not mentioned in the selected document(s)." DO NOT extrapolate, assume, or guess under any circumstances.
-3. USE EXACT QUOTES in quotation marks whenever referencing specific clauses, terms, or field names from the documents.
-4. IDENTIFY SPECIFICALLY whether a quote comes from "Placement Policy" or "TIP (Internship Policy)".
-5. WHEN COMPARING BOTH POLICIES, highlight key differences explicitly (e.g. "Placement Policy" vs "TIP (Internship Policy)", "Phase 1 & 2 timelines" vs "15-week internship starting 14 Dec 2026").
-6. Maintain a crisp, structured format using Markdown headers, bold highlights, and exact quote callouts.
+3. INCLUDE EXPLICIT IN-TEXT CITATIONS: Every claim, rule, or requirement MUST be accompanied by an explicit inline citation tagging the exact document and section/clause (e.g., [Source: Placement Policy - Clause 3.1] or [Source: TIP Internship Policy - Section 4]).
+4. USE EXACT QUOTES in quotation marks whenever referencing specific clauses, terms, or field names from the documents.
+5. IDENTIFY SPECIFICALLY whether a quote comes from "Placement Policy" or "TIP (Internship Policy)".
+6. WHEN COMPARING BOTH POLICIES, highlight key differences explicitly (e.g., "Placement Policy" vs "TIP (Internship Policy)").
+7. Maintain a crisp, structured format using Markdown headers, bold highlights, exact quote callouts, and clear citations.
 
 SELECTED DOCUMENT CONTEXT:
 ${docContext}`;

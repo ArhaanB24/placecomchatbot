@@ -30,10 +30,9 @@ export interface ChatMessage {
 }
 
 export type NvidiaModelId =
-  | 'google/gemma-4-31b-it'
   | 'google/gemma-2-27b-it'
-  | 'google/gemma-2-9b-it'
   | 'meta/llama-3.3-70b-instruct'
+  | 'google/gemma-2-9b-it'
   | 'meta/llama-3.1-8b-instruct'
   | 'mistralai/mistral-7b-instruct-v0.3';
 
